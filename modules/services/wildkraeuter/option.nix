@@ -23,6 +23,13 @@
               description = "Fragen zu deinen Skripten mit dem in Hermes angemeldeten KI-Anbieter besprechen.";
               ui.label = "Lerntutor aktivieren";
             };
+            localTutorModel = mkOption {
+              type = types.str;
+              default = "";
+              rank = 21;
+              description = "Name eines auf diesem Server in Ollama geladenen Modells. Leer lässt den bestehenden Hermes-Modus verfügbar.";
+              ui.label = "Lokales Lernmodell";
+            };
             port = mkOption {
               type = types.port;
               default = 8787;
@@ -48,7 +55,7 @@
             icon = ./icon.svg;
             tagline = "Deine Wildkräuterschule zum Üben${plugin.label}";
             description = "Lerne Pflanzen mit historischen Tafeln aus deinen Unterlagen. Übe Namen, erkenne Pflanzen und besprich deine Skripte mit einem Lerntutor.";
-            notes = "Unterlagen bleiben auf deinem Server. Der optionale Tutor sendet passende Skriptauszüge an den in Hermes gewählten Anbieter. Codex in Neo unter Hermes anmelden. Lernfortschritt wird in deinem Browser gespeichert.";
+            notes = "Unterlagen bleiben auf deinem Server. Mit einem lokalen Modell bleiben auch die Tutorfragen auf dem Server. Im Hermes-Modus verarbeitet der gewählte Anbieter passende Skriptauszüge. Lernfortschritt wird in deinem Browser gespeichert.";
             privacy = ["documents" "assistant"];
             license = {spdx = "MIT"; url = "https://opensource.org/license/mit";};
           }

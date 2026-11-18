@@ -30,6 +30,11 @@ class LearningTest(unittest.TestCase):
   self.assertTrue(self.call('/api/answer',answer)['correct'])
   with self.assertRaises(error.HTTPError) as ctx:self.call('/api/answer',answer)
   self.assertEqual(ctx.exception.code,409);ctx.exception.close()
+ def test_latin_options_and_separate_name_parts(self):
+  for mode,answer in [('genus','Taraxacum'),('species','officinale')]:
+   task=self.call('/api/challenge?id=a')
+   self.assertEqual({option['label'] for option in task['options']},{'Taraxacum officinale','Melissa officinalis'})
+   self.assertTrue(self.call('/api/answer',{'challenge':task['challenge'],'mode':mode,'answer':answer})['correct'])
  def test_wrong_latin_rejected(self):
   c=self.call('/api/challenge');self.assertFalse(self.call('/api/answer',{'challenge':c['challenge'],'mode':'latin','answer':'unknown'})['correct'])
  def test_csrf_required(self):
@@ -47,6 +52,13 @@ class LearningTest(unittest.TestCase):
  def test_retrieval_excludes_historical_medicine(self):
   pages=[dict(title='Skript.pdf',text='Kreuzgegenständige Blätter',doc='s',page=1),dict(title='Köhlers Medizinal Buch V_1.pdf',text='Blätter '*20,doc='k',page=1)]
   self.assertEqual([p['doc'] for p in server.retrieve('Blätter',pages)],['s'])
+ def test_local_sources_favour_specific_terms_and_skip_historical_books(self):
+  specific=dict(title='Botanik.pdf',text='Kreuzgegenständige Blätter',doc='a',page=1)
+  generic=[dict(title=f'Kurs {i}.pdf',text='Blätter '*6,doc=str(i),page=1) for i in range(10)]
+  historical=dict(title='Köhlers Medizinal Buch.pdf',text='Kreuzgegenständig '*10,doc='k',page=1)
+  pages=[*generic,historical,specific]
+  self.assertEqual(server.local_sources('Was bedeutet kreuzgegenständig bei Blättern?',pages)[0],specific)
+  self.assertEqual(server.local_sources('Quantenverschränkung',pages),[])
  def test_unconnected_tutor_is_explicit(self):
   with self.assertRaises(ValueError):server.hermes_chat({},'Hallo',[],[])
 if __name__=='__main__':unittest.main()

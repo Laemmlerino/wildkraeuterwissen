@@ -1,26 +1,235 @@
 'use strict';
-let boot,mode='home',current,writeKind='latin',chatBusy=false;
-let progress={answers:0,correct:0,seen:[]};try{progress={...progress,...JSON.parse(localStorage.getItem('herbarium-progress')||'{}')}}catch{}
-const view=document.querySelector('#view'),notice=document.querySelector('#notice');
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-async function api(path,body){const r=await fetch(path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json','X-CSRF-Token':boot.csrf}:{},body:body?JSON.stringify(body):undefined});const j=await r.json();if(!r.ok)throw Error(j.error||'Verbindung fehlgeschlagen');return j}
-function fail(e){notice.textContent=e.message}
-function save(){try{localStorage.setItem('herbarium-progress',JSON.stringify(progress))}catch{document.querySelector('#saved').textContent='Fortschritt kann hier nicht gespeichert werden'}}
-function sources(items){return items.map(s=>`<a class="source" target="_blank" rel="noopener" href="/documents/${esc(s.doc)}.pdf#page=${s.page}">${esc(s.title)} · PDF-Seite ${s.page}</a>`).join('')}
-const MODES=[['quick','◷','Schnelllernen','Bild anschauen. Namen aufdecken. Wissen festigen.'],['choice','❀','Pflanzen erkennen','Vier Antworten. Eine Pflanze. Ganz ohne Tippen.'],['write','✎','Namen schreiben','Erkenne die Tafel und übe deutsche oder lateinische Namen.'],['chat','☏','Dein Lerntutor','Fragen stellen, Zusammenhänge verstehen oder dich abfragen lassen.']];
-function home(){const image=boot.plants[3]?.image||boot.plants[0]?.image;view.innerHTML=`<div class="hero"><div><span class="eyebrow">Ein kleines Stück Natur. Jeden Tag.</span><h1>Was wächst,<br>bleibt <em>im Kopf.</em></h1><p class="sub">Entdecke deine Wildkräuter neu. Mit originalen botanischen Tafeln und dem Wissen aus deiner Ausbildung.</p><button class="primary" data-go="quick">Jetzt eine Pflanze lernen &nbsp; ↗</button></div>${image?`<img src="${image}" alt="Botanische Illustration aus deinen Köhler-Unterlagen">`:''}</div><div class="stats"><div><strong>${boot.plants.length}</strong>kuratierte Bildkarten</div><div><strong>${progress.seen.length}</strong>Pflanzen wiederholt</div><div><strong>${progress.answers?Math.round(progress.correct/progress.answers*100):0}%</strong>richtige Antworten</div></div><div class="section-title"><h2>Wie möchtest du heute lernen?</h2><span class="eyebrow">Dein Tempo. Dein Weg.</span></div><div class="cards">${MODES.map(([id,icon,title,text])=>`<button class="mode-card" data-go="${id}"><span class="icon">${icon}</span><span class="arrow">↗</span><h3>${title}</h3><p>${text}</p></button>`).join('')}</div>`}
-async function go(next){mode=next;notice.textContent='';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));if(mode==='home')return home();if(mode==='chat')return chat();if(mode==='library')return library();await exercise()}
-async function exercise(){if(!boot.plants.length){view.innerHTML='<div class="empty"><h2>Deine Unterlagen warten auf den Import.</h2><p>Importiere die Skripte und die vier Köhler-Bände, um loszulegen.</p></div>';return}const meta=MODES.find(x=>x[0]===mode);view.innerHTML=`<div class="workspace"><span class="eyebrow">Pflanze für Pflanze</span><h1>${meta[2]}</h1><p class="sub">${meta[3]}</p><div class="toolbar">${mode==='write'?'<label>Gesuchter Name <select id="kind"><option value="latin">Lateinisch</option><option value="de">Deutsch</option></select></label>':''}<button class="secondary" id="next">Nächste Pflanze →</button></div><div class="plant-layout"><div class="plate"><img id="plant-image" alt="Gesuchte Pflanze, botanische Tafel"></div><div class="panel" id="task"></div></div></div>`;if(mode==='write'){document.querySelector('#kind').value=writeKind;document.querySelector('#kind').onchange=e=>{writeKind=e.target.value;newTask().catch(fail)}}document.querySelector('#next').onclick=()=>newTask().catch(fail);await newTask()}
-async function newTask(){notice.textContent='';const task=document.querySelector('#task');if(mode==='quick'){const p=boot.plants[Math.floor(Math.random()*boot.plants.length)];current=p;document.querySelector('#plant-image').src=p.image;task.innerHTML='<span class="eyebrow">Erst schauen, dann aufdecken</span><h2>Kennst du diese Pflanze?</h2><p class="sub">Nimm dir einen Moment für Blätter, Blüten und Wuchsform.</p><button class="primary" id="reveal">Namen aufdecken</button>';document.querySelector('#reveal').onclick=async()=>{try{const full=await api('/api/card?id='+encodeURIComponent(current.id));task.innerHTML=plantInfo(full)+'<div class="row"><button class="secondary" id="again">Noch einmal üben</button><button class="primary" id="known">Gewusst ✓</button></div>';document.querySelector('#again').onclick=()=>newTask().catch(fail);document.querySelector('#known').onclick=()=>{mark(full.id);newTask().catch(fail)}}catch(e){fail(e)}};return}current=await api('/api/challenge');document.querySelector('#plant-image').src=current.image;task.innerHTML=`<span class="eyebrow">${mode==='choice'?'Schau genau hin':'Vom Bild zum Begriff'}</span><h2>Welche Pflanze ist das?</h2>${mode==='choice'?`<div class="choices">${current.options.map((o,i)=>`<button data-answer="${esc(o.id)}">${i+1}. &nbsp; ${esc(o.label)}</button>`).join('')}</div>`:`<form id="answer-form"><label for="answer">${writeKind==='latin'?'Botanischer Name (Gattung und Art)':'Deutscher Pflanzenname'}</label><input id="answer" autocomplete="off" spellcheck="false" required placeholder="Deine Antwort …"><button class="primary">Antwort prüfen</button></form>`}<div id="feedback" aria-live="polite"></div>`;task.querySelectorAll('[data-answer]').forEach(b=>b.onclick=()=>answer(b.dataset.answer));const f=document.querySelector('#answer-form');if(f)f.onsubmit=e=>{e.preventDefault();answer(document.querySelector('#answer').value)}}
-function mark(id){if(!progress.seen.includes(id))progress.seen.push(id);save()}
-function plantInfo(p){return `<h2>${esc(p.de)}</h2><p><em>${esc(p.latin)}</em></p>${sources([p.source])}${p.excerpts.length?`<details><summary>Im Skript nachlesen</summary>${p.excerpts.map(s=>sources([s])+`<p class="excerpt">${esc(s.text)}</p>`).join('')}</details>`:'<p class="sub">Die Bildkarte stammt aus dem historischen Tafelband.</p>'}`}
-async function answer(value){const task=document.querySelector('#task');task.querySelectorAll('button,input').forEach(b=>b.disabled=true);try{const r=await api('/api/answer',{challenge:current.challenge,mode:mode==='choice'?'choice':writeKind,answer:value});progress.answers++;if(r.correct)progress.correct++;mark(r.plant.id);document.querySelector('#feedback').innerHTML=`<div class="result ${r.correct?'':'wrong'}"><strong>${r.correct?'Richtig erkannt.':'Weiterlernen lohnt sich.'}</strong>${plantInfo(r.plant)}</div>`}catch(e){fail(e)}}
-function library(){view.innerHTML=`<div class="workspace"><span class="eyebrow">Dein Wissensfundus</span><h1>Die Originale.</h1><p class="sub">${boot.documents.length} Dokumente. Bilder und Wissen bleiben bei deinen Unterlagen. Der Tutor nutzt die Skripte; historische Heilversprechen aus Köhler werden nicht als Lehrgrundlage verwendet.</p>${boot.documents.map(d=>`<a class="doc" target="_blank" rel="noopener" href="/documents/${d.id}.pdf"><span>${esc(d.title)}</span><span class="pill">${d.pages} Seiten ↗</span></a>`).join('')}</div>`}
+
+let boot, mode = 'home', writeKind = 'latin', chatBusy = false, round = 0;
+let progress = {cards: {}, seen: []};
+try {
+  progress = {...progress, ...JSON.parse(localStorage.getItem('herbarium-progress') || '{}')};
+} catch {}
+const view = document.querySelector('#view');
+const notice = document.querySelector('#notice');
+const esc = value => String(value).replace(/[&<>"']/g, char => (
+  {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char]
+));
+
+async function api(path, body) {
+  const response = await fetch(path, body === undefined ? {} : {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRF-Token': boot.csrf},
+    body: JSON.stringify(body)
+  });
+  const json = await response.json();
+  if (!response.ok) throw Error(json.error || 'Verbindung fehlgeschlagen');
+  return json;
+}
+
+function fail(error) {
+  notice.textContent = error.message;
+}
+
+function save() {
+  try {
+    localStorage.setItem('herbarium-progress', JSON.stringify(progress));
+  } catch {
+    document.querySelector('#saved').textContent = 'Fortschritt konnte nicht gespeichert werden';
+  }
+}
+
+const levels = ['Neu', 'In Übung', 'Sicher'];
+const level = plant => Math.min(2, progress.cards[plant.id] ?? Number(progress.seen.includes(plant.id)));
+const modes = {
+  quick: ['Schnelllernen', 'Lateinisch aufdecken und die Karte selbst einstufen.'],
+  choice: ['Pflanzen erkennen', 'Wähle den passenden lateinischen Namen.'],
+  write: ['Namen schreiben', 'Übe den ganzen Namen, die Gattung oder das Art-Epitheton.']
+};
+
+function sources(items) {
+  return items.filter(Boolean).map(source => (
+    `<a class="source" target="_blank" rel="noopener" href="/documents/${esc(source.doc)}.pdf#page=${source.page}">${source.number ? `[${source.number}] ` : ''}${esc(source.title)} · PDF-Seite ${source.page}</a>`
+  )).join('');
+}
+
+function home() {
+  const specimen = boot.plants.find(plant => plant.id === 'schafgarbe');
+  view.innerHTML = `<div class="hero"><div><h1>Wildkräuter<br>lernen</h1>
+    <p class="sub">${boot.plants.length} Karten · ${boot.plants.filter(plant => plant.image).length} mit botanischer Tafel</p>
+    <button class="primary" data-go="quick">Schnelllernen starten</button></div>
+    ${specimen?.image ? `<img src="${esc(specimen.image)}" alt="Botanische Tafel der Schafgarbe">` : ''}</div>
+    <div class="stats">${levels.map((name, index) => `<div><strong>${boot.plants.filter(plant => level(plant) === index).length}</strong>${name}</div>`).join('')}</div>
+    <div class="cards">${Object.entries(modes).map(([id, [title, description]]) => (
+      `<button class="mode-card" data-go="${id}"><h3>${title}</h3><p>${description}</p></button>`
+    )).join('')}</div>`;
+}
+
+async function go(next) {
+  mode = next;
+  round++;
+  notice.textContent = '';
+  document.querySelectorAll('[data-mode]').forEach(button => button.classList.toggle('active', button.dataset.mode === (mode === 'missing' ? 'deck' : mode)));
+  if (mode === 'home') return home();
+  if (mode === 'chat') return chat();
+  if (mode === 'library') return library();
+  if (mode === 'deck' || mode === 'missing') return deck(mode === 'missing');
+  return exercise();
+}
+
+let previous;
+function drawCard(textOnly) {
+  const allowed = boot.plants.filter(plant =>
+    !(mode === 'write' && writeKind !== 'genus' && plant.group) &&
+    (textOnly ? !plant.image : plant.image));
+  const other = allowed.filter(plant => plant.id !== previous);
+  const pool = other.length ? other : allowed;
+  const weights = [4, 7, 1];
+  let draw = Math.random() * pool.reduce((sum, plant) => sum + weights[level(plant)], 0);
+  return pool.find(plant => (draw -= weights[level(plant)]) < 0);
+}
+
+function exercise() {
+  const [title, description] = modes[mode];
+  view.innerHTML = `<div class="workspace"><h1>${title}</h1><p class="sub">${description}</p>
+    <div class="toolbar">
+    ${mode === 'write' ? '<label>Abfrage <select id="kind"><option value="latin">Vollständiger Name</option><option value="genus">Gattung</option><option value="species">Art-Epitheton</option></select></label>' : ''}
+    ${mode !== 'choice' && boot.plants.some(plant => !plant.image) ? '<label>Stapel <select id="stack"><option value="image">Mit Tafel</option><option value="text">Ohne Tafel · Deutsch als Hinweis</option></select></label>' : ''}
+    <button class="secondary" id="next">Nächste Karte →</button>
+    </div><div class="plant-layout"><div class="plate" id="plate"></div><div class="panel" id="task"></div></div></div>`;
+  const kind = document.querySelector('#kind');
+  if (kind) {
+    kind.value = writeKind;
+    kind.onchange = () => { writeKind = kind.value; newTask().catch(fail); };
+  }
+  const stack = document.querySelector('#stack');
+  if (stack) {
+    if (!boot.plants.some(plant => plant.image)) stack.value = 'text';
+    stack.onchange = () => newTask().catch(fail);
+  }
+  document.querySelector('#next').onclick = () => newTask().catch(fail);
+  return newTask();
+}
+
+function plantInfo(plant) {
+  return `<h2><i>${esc(plant.latin)}</i></h2>
+    <details><summary>Deutschen Namen anzeigen</summary><p>${esc(plant.de)}</p></details>
+    ${plant.image_note ? `<p class="sub">${esc(plant.image_note)}</p>` : ''}
+    ${sources([plant.course, plant.source])}`;
+}
+
+function rate(plant, correct) {
+  progress.cards[plant.id] = correct ? Math.min(level(plant) + 1, 2) : 1;
+  save();
+}
+
+async function newTask() {
+  const token = ++round;
+  const active = mode;
+  const textOnly = document.querySelector('#stack')?.value === 'text';
+  const task = document.querySelector('#task');
+  const plate = document.querySelector('#plate');
+  notice.textContent = '';
+  task.replaceChildren();
+  plate.replaceChildren();
+  const plant = drawCard(textOnly);
+  if (!plant) {
+    task.textContent = 'Für diesen Stapel gibt es noch keine Karten.';
+    return;
+  }
+  previous = plant.id;
+  if (plant.image) {
+    plate.innerHTML = `<a href="${esc(plant.image)}" target="_blank" rel="noopener"><img src="${esc(plant.image)}" alt="Botanische Tafel der gesuchten Pflanze"><span>Tafel vergrössern ↗</span></a>`;
+  }
+  if (active === 'quick') {
+    const full = await api('/api/card?id=' + encodeURIComponent(plant.id));
+    if (token !== round) return;
+    if (!plant.image) plate.textContent = full.de;
+    task.innerHTML = '<h2>Wie heisst diese Pflanze auf Latein?</h2><button class="primary" id="reveal">Lateinischen Namen aufdecken</button>';
+    document.querySelector('#reveal').onclick = () => {
+      task.innerHTML = plantInfo(full) + '<div class="row"><button class="secondary" id="again">Noch üben</button><button class="primary" id="known">Gewusst</button></div>';
+      document.querySelector('#again').onclick = () => { rate(full, false); newTask().catch(fail); };
+      document.querySelector('#known').onclick = () => { rate(full, true); newTask().catch(fail); };
+    };
+    return;
+  }
+  const kind = active === 'choice' ? 'choice' : writeKind;
+  const challenge = await api('/api/challenge?id=' + encodeURIComponent(plant.id) + (textOnly ? '&text=1' : ''));
+  if (token !== round) return;
+  if (challenge.prompt) plate.textContent = challenge.prompt;
+  const labels = {latin: 'Gattung und Art-Epitheton', genus: 'Gattung', species: 'Art-Epitheton'};
+  task.innerHTML = active === 'choice'
+    ? `<h2>Welche Pflanze siehst du?</h2><div class="choices">${challenge.options.map(option => `<button data-answer="${esc(option.id)}"><i>${esc(option.label)}</i></button>`).join('')}</div>`
+    : `<form id="answer-form"><label for="answer">${labels[kind]}</label><input id="answer" autocomplete="off" spellcheck="false" required><button class="primary">Antwort prüfen</button></form>`;
+  task.insertAdjacentHTML('beforeend', '<div id="feedback" aria-live="polite"></div>');
+  async function answer(value) {
+    const inputs = task.querySelectorAll('button,input');
+    inputs.forEach(input => { input.disabled = true; });
+    try {
+      const result = await api('/api/answer', {challenge: challenge.challenge, mode: kind, answer: value});
+      rate(result.plant, result.correct);
+      if (token !== round) return;
+      document.querySelector('#feedback').innerHTML = `<div class="result ${result.correct ? '' : 'wrong'}"><strong>${result.correct ? 'Richtig' : 'Noch üben'}</strong>${plantInfo(result.plant)}</div>`;
+    } catch (error) {
+      if (token === round) fail(error);
+    }
+  }
+  task.querySelectorAll('[data-answer]').forEach(button => { button.onclick = () => answer(button.dataset.answer); });
+  const form = task.querySelector('form');
+  if (form) form.onsubmit = event => { event.preventDefault(); answer(form.querySelector('input').value); };
+}
+
+async function deck(missing) {
+  const token = round;
+  const plants = await api('/api/deck');
+  if (token !== round) return;
+  view.innerHTML = `<div class="workspace"><h1>Karteikasten</h1>
+    <div class="toolbar"><label>Ansicht <select id="deck-filter"><option value="all">Alle Pflanzen</option><option value="missing">Ohne zugeordnete Tafel</option>
+    ${levels.map((name, index) => `<option value="${index}">${name}</option>`).join('')}</select></label></div>
+    <p id="deck-count" role="status"></p><div id="deck-list"></div></div>`;
+  const filter = document.querySelector('#deck-filter');
+  if (missing) filter.value = 'missing';
+  function render() {
+    const selected = plants.filter(plant => filter.value === 'all' || (filter.value === 'missing' ? !plant.image : level(plant) === Number(filter.value)));
+    document.querySelector('#deck-count').textContent = `${selected.length} Karten`;
+    document.querySelector('#deck-list').innerHTML = selected.map(plant => `<details class="folder"><summary><i>${esc(plant.latin)}</i> <span>${plant.image ? 'Tafel vorhanden' : 'Tafel fehlt'} · ${levels[level(plant)]}</span></summary>
+      <p>${esc(plant.de)}</p>${plant.image_note ? `<p class="sub">${esc(plant.image_note)}</p>` : ''}${sources([plant.course, plant.source])}
+      ${plant.image ? `<a class="source" href="${esc(plant.image)}" target="_blank" rel="noopener">Tafel öffnen ↗</a>` : ''}</details>`).join('');
+  }
+  filter.onchange = render;
+  render();
+}
+
+function library() {
+  const sections = {
+    'Wildkräuterausbildung': [],
+    'Fachliteratur': [],
+    'Ergänzungen und Rezepte': []
+  };
+  for (const doc of boot.documents) {
+    const group = /Köhler|Artikel Uni/.test(doc.title) ? 'Fachliteratur'
+      : /Rezept|Ergänzung|Anhang|geschichte|Öhrchen/u.test(doc.title) ? 'Ergänzungen und Rezepte'
+      : 'Wildkräuterausbildung';
+    sections[group].push(doc);
+  }
+  const priority = title => /Modulskript|_Skript| Skript/u.test(title) ? 0 : 1;
+  view.innerHTML = `<div class="workspace"><h1>Bibliothek</h1><p class="sub">${boot.documents.length} Originaldokumente</p>
+    ${Object.entries(sections).map(([group, docs]) => `<details class="folder"><summary>${group} <span>${docs.length} PDFs</span></summary>
+    ${docs.sort((a,b) => priority(a.title)-priority(b.title) || a.title.localeCompare(b.title, 'de')).map(doc => (
+      `<a class="doc" target="_blank" rel="noopener" href="/documents/${esc(doc.id)}.pdf"><span>${esc(doc.title.replace(/\.pdf$/, '').replaceAll('_', ' '))}</span><span class="pill">${doc.pages} S. ↗</span></a>`
+    )).join('')}</details>`).join('')}</div>`;
+}
 let messages=[];
 function bubble(who,text,refs=[]){messages.push({who,text,refs});drawMessages()}
 function drawMessages(){const el=document.querySelector('.messages');if(!el)return;el.innerHTML=messages.map(m=>`<div class="bubble ${m.who==='Du'?'user':''}"><small>${m.who}</small>${esc(m.text)}${sources(m.refs)}</div>`).join('');el.scrollTop=el.scrollHeight}
-function chat(){view.innerHTML=`<div class="workspace"><span class="eyebrow">Verstehen statt auswendig lernen</span><h1>Frag dein Herbarium.</h1><p class="sub">Dein Tutor erklärt die Grundlagen aus den Skripten und fragt dich Schritt für Schritt ab. Passende Skriptauszüge und deine Nachrichten werden an den in Neo eingestellten KI-Anbieter gesendet.</p><div class="row"><button class="secondary" id="quiz">Frag mich zu den Grundlagen ab</button><button class="secondary" id="reset-chat">Neues Gespräch</button>${boot.neoUrl?`<a class="source" target="_blank" rel="noopener" href="${esc(boot.neoUrl)}">Codex in Neo verbinden ↗</a>`:''}</div><div class="chat-shell"><div class="messages" role="log" aria-live="polite"></div><form class="chat-form" id="chat-form"><input id="chat-input" aria-label="Nachricht an den Tutor" required maxlength="4000" placeholder="Zum Beispiel: Was bedeutet kreuzgegenständig?"><button class="primary" id="send">Senden ↗</button></form></div><p class="sub">Anmeldung: Neo → Hermes → KI-Anbieter → OpenAI Codex → Anmelden. Der Tutor nutzt diese Verbindung.</p></div>`;drawMessages();if(!messages.length)document.querySelector('.messages').textContent=boot.chat?'Was möchtest du heute verstehen? Stelle eine Frage oder starte eine Abfrage.':'Der Tutor ist noch nicht mit Hermes verbunden. Die Lernmodi funktionieren unabhängig davon.';document.querySelector('#chat-form').onsubmit=e=>{e.preventDefault();sendChat(document.querySelector('#chat-input').value)};document.querySelector('#quiz').onclick=()=>sendChat('Frage mich zu den Grundlagen aus dem Einstiegsskript ab. Stelle eine Frage nach der anderen und warte auf meine Antwort.');document.querySelector('#reset-chat').onclick=async()=>{if(chatBusy)return;try{await api('/api/chat/reset',{});messages=[];chat()}catch(e){fail(e)}};setChatBusy()}
+function chat(){view.innerHTML=`<div class="workspace"><span class="eyebrow">Verstehen statt auswendig lernen</span><h1>Frag dein Herbarium.</h1><p class="sub">Dein Tutor erklärt die Grundlagen aus den Skripten und fragt dich Schritt für Schritt ab. ${boot.localTutor ? 'Deine Fragen und PDF-Auszüge verarbeitet das lokale Modell auf dem Rechner, auf dem die App läuft.' : 'Der Hermes-Modus sendet passende Skriptauszüge an den in Neo eingestellten Anbieter.'}</p><div class="row"><button class="secondary" id="quiz">Frag mich zu den Grundlagen ab</button><button class="secondary" id="reset-chat">Neues Gespräch</button>${boot.neoUrl&&!boot.localTutor?`<a class="source" target="_blank" rel="noopener" href="${esc(boot.neoUrl)}">Codex in Neo verbinden ↗</a>`:''}</div><div class="chat-shell"><div class="messages" role="log" aria-live="polite"></div><form class="chat-form" id="chat-form"><input id="chat-input" aria-label="Nachricht an den Tutor" required maxlength="4000" placeholder="Zum Beispiel: Was bedeutet kreuzgegenständig?"><button class="primary" id="send">Senden ↗</button></form></div></div>`;drawMessages();if(!messages.length)document.querySelector('.messages').textContent=boot.chat?'Was möchtest du heute verstehen? Stelle eine Frage oder starte eine Abfrage.':'Der Tutor ist noch nicht mit Hermes verbunden. Die Lernmodi funktionieren unabhängig davon.';document.querySelector('#chat-form').onsubmit=e=>{e.preventDefault();sendChat(document.querySelector('#chat-input').value)};document.querySelector('#quiz').onclick=()=>sendChat('Frage mich zu den Grundlagen aus dem Einstiegsskript ab. Stelle eine Frage nach der anderen und warte auf meine Antwort.');document.querySelector('#reset-chat').onclick=async()=>{if(chatBusy)return;try{await api('/api/chat/reset',{});messages=[];chat()}catch(e){fail(e)}};setChatBusy()}
 function setChatBusy(){for(const id of ['send','quiz','reset-chat']){const b=document.getElementById(id);if(b)b.disabled=chatBusy}const send=document.querySelector('#send');if(send)send.textContent=chatBusy?'Tutor denkt …':'Senden ↗'}
 async function sendChat(text){if(chatBusy||!text.trim())return;chatBusy=true;setChatBusy();notice.textContent='';bubble('Du',text);const inp=document.querySelector('#chat-input');if(inp)inp.value='';try{const r=await api('/api/chat',{message:text});bubble('Tutor',r.reply,r.sources)}catch(e){fail(e)}finally{chatBusy=false;setChatBusy()}}
-document.addEventListener('click',e=>{const b=e.target.closest('[data-mode],[data-go]');if(b)go(b.dataset.mode||b.dataset.go).catch(fail)});
-api('/api/bootstrap').then(j=>{boot=j;home()}).catch(fail);
+
+document.addEventListener('click', event => {
+  const button = event.target.closest('[data-mode],[data-go]');
+  if (button && boot) go(button.dataset.mode || button.dataset.go).catch(fail);
+});
+function openLocation() {
+  go(location.hash === '#fehlende-tafeln' ? 'missing' : 'home').catch(fail);
+}
+api('/api/bootstrap').then(data => {
+  boot = data;
+  window.addEventListener('hashchange', openLocation);
+  openLocation();
+}).catch(fail);

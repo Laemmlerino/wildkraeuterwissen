@@ -7,13 +7,15 @@
     hermes = config.neo.services.hermes;
     neo = config.neo.services.neo;
     domain = config.neo.services.swag.domain;
-    tutorReady = cfg.tutorEnabled && hermes.enabled && neo.enabled;
+    localTutor = cfg.localTutorModel != "";
+    useHermes = cfg.tutorEnabled && !localTutor;
+    tutorReady = useHermes && hermes.enabled && neo.enabled;
   in {
     config = lib.mkIf cfg.enabled (lib.mkMerge [
       (lib.neo.mkDockerToLocalhostForward cfg.port)
       {
         assertions = [
-          {assertion = !cfg.tutorEnabled || (hermes.enabled && neo.enabled && lib.neo.isSet hermes.gatewayToken); message = "${name}: activate Hermes and Neo web, and generate a Hermes gateway token before enabling the tutor.";}
+          {assertion = !useHermes || (hermes.enabled && neo.enabled && lib.neo.isSet hermes.gatewayToken); message = "${name}: activate Hermes and Neo web, and generate a Hermes gateway token before enabling the tutor.";}
         ];
         systemd.tmpfiles.rules = ["d ${appdata} 0700 homeserver homeserver -"];
         systemd.services.${name} = {
@@ -24,6 +26,8 @@
             WILDKRAEUTER_DATA = appdata;
             PORT = toString cfg.port;
             NEO_UI_URL = if domain == null then "" else "https://${neo.subdomain}.${domain}";
+          } // lib.optionalAttrs localTutor {
+            WILDKRAEUTER_LOCAL_MODEL = cfg.localTutorModel;
           } // lib.optionalAttrs tutorReady {
             HERMES_URL = "http://127.0.0.1:${toString hermes.gatewayPort}";
             HERMES_KEY_FILE = "%d/hermes-key";

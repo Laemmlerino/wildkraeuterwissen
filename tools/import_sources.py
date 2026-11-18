@@ -2,6 +2,7 @@
 import argparse, hashlib, json, re, shutil, unicodedata
 from pathlib import Path
 import pymupdf
+from course_cards import course_cards
 
 # Manually matched to the actual plates in the supplied first Köhler volume.
 PLATES = [
@@ -14,6 +15,17 @@ PLATES = [
  ('malve','Wilde Malve','Malva sylvestris',355,['Malva silvestris']),
  ('kamille','Echte Kamille','Matricaria chamomilla',367,['Kamille']),
 ]
+# Additional plates inspected against their printed captions. Historical synonyms
+# and OCR spelling in the atlas can differ from the course name.
+ATLAS_PLATES = {
+ 1: {241: 'Juglans regia', 245: 'Tussilago farfara', 281: 'Datura stramonium',
+     287: 'Daphne mezereum', 293: 'Viscum album', 329: 'Valeriana officinalis',
+     407: 'Potentilla erecta'},
+ 3: {535: 'Convallaria majalis'},
+ 4: {85: 'Saponaria officinalis'},
+}
+CAPTION_LABELS = {'Convallaria majalis': 'mafalis', 'Saponaria officinalis': 'offieinalis'}
+
 def norm(s): return unicodedata.normalize('NFKD',s).casefold()
 def build(source, output):
  source, output = Path(source), Path(output)
@@ -21,7 +33,7 @@ def build(source, output):
  if not pdfs: raise ValueError('Keine PDF-Unterlagen gefunden')
  (output/'images').mkdir(parents=True,exist_ok=True)
  (output/'documents').mkdir(exist_ok=True)
- pages=[]; docs=[]; plants=[]
+ pages=[]; docs=[]; plants=[]; atlases=[]
  for p in pdfs:
   ident=hashlib.sha256(str(p.relative_to(source)).encode()).hexdigest()[:16]
   shutil.copyfile(p,output/'documents'/f'{ident}.pdf')
@@ -31,16 +43,52 @@ def build(source, output):
   for n,page in enumerate(doc):
    text=page.get_text().strip()
    if text: pages.append(dict(doc=ident,title=p.name,page=n+1,text=text))
-  if re.search(r'V_1\.pdf$',p.name):
-   for ident_plant,de,latin,n,aliases in PLATES:
-    page=doc[n-1]
-    # Crop printed family/name bands; no invented or external images.
-    name_blocks=[b for b in page.get_text('blocks') if latin.split()[0].casefold() in b[4].casefold() and b[1] > page.rect.height*.6]
-    bottom=min([b[1]-page.rect.height*.008 for b in name_blocks],default=page.rect.height*.82)
-    clip=pymupdf.Rect(page.rect.width*.03,page.rect.height*.105,page.rect.width*.97,bottom)
-    pix=page.get_pixmap(matrix=pymupdf.Matrix(1000/clip.width,1000/clip.width),clip=clip)
-    pix.save(output/'images'/f'{ident_plant}.png')
-    plants.append(dict(id=ident_plant,de=de,latin=latin,aliases=aliases,image=f'/images/{ident_plant}.png',source=dict(doc=ident,title=p.name,page=n),excerpts=[]))
+  if re.search(r'V_[1-4]\.pdf$',p.name):
+   atlases.append((docs[-1], doc))
+  else:
+   doc.close()
+
+ by_latin={}
+ for ident,de,latin,n,aliases in PLATES:
+  by_latin[latin]=dict(id=ident,de=de,latin=latin,aliases=aliases,image=None,source=None,excerpts=[])
+ for latin,de,page in course_cards(pages):
+  ref={key:page[key] for key in ('doc','title','page')}
+  plant=by_latin.setdefault(latin, dict(id=re.sub(r'[^a-z]+','-',latin.casefold()).strip('-'),
+      de=de,latin=latin,aliases=[],image=None,source=None,excerpts=[]))
+  plant.setdefault('course',ref)
+  if latin.endswith(' spp.'):
+   plant['group']=True
+ plants=sorted(by_latin.values(),key=lambda p:p['latin'])
+ for metadata, doc in atlases:
+  volume=int(metadata['title'][-5])
+  known=dict(ATLAS_PLATES.get(volume, {}))
+  if volume == 1:
+   known.update({entry[3]:entry[2] for entry in PLATES})
+  for index,latin in known.items():
+   if index > len(doc):
+    continue
+   page=doc[index-1]
+   plant=by_latin.get(latin)
+   if plant is None or plant['image']:
+    continue
+   ref=dict(doc=metadata['id'],title=metadata['title'],page=index)
+   label=CAPTION_LABELS.get(latin, latin.split()[0]).casefold()
+   captions=[line for block in page.get_text('dict',flags=pymupdf.TEXTFLAGS_TEXT)['blocks']
+             for line in block['lines'] if line['bbox'][1] > page.rect.height*.78
+             and any(label in span['text'].casefold() for span in line['spans'])]
+   for line in captions:
+    rect=pymupdf.Rect(line['bbox'])
+    pad=page.rect.width*.008
+    rect+=(-pad,-pad,pad,pad)
+    page.draw_rect(rect,color=None,fill=(.94,.89,.77),overlay=True)
+   scale=1250/page.rect.width
+   pix=page.get_pixmap(matrix=pymupdf.Matrix(scale,scale))
+   filename=hashlib.sha256(plant['id'].encode()).hexdigest()[:20]+'.png'
+   pix.save(output/'images'/filename)
+   plant.update(image=f"/images/{filename}",source=ref)
+   if latin in {'Juglans regia','Sambucus nigra','Viscum album'}:
+    plant['image_note']='Tafel zeigt Zweige und Details der Pflanze.'
+  doc.close()
  for plant in plants:
   terms=[plant['latin'],plant['de'],*plant['aliases']]
   matches=[p for p in pages if 'Medizinal Buch' not in p['title'] and any(norm(t) in norm(p['text']) for t in terms)]

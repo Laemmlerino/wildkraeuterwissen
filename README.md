@@ -2,12 +2,12 @@
 
 Deutschsprachiges Lernatelier mit originalen Bildern aus den eigenen Unterlagen.
 
-- Schnelllernen: Namen aufdecken und Karten wiederholen.
-- Pflanzen erkennen: vier Antworten auswählen, ohne Tippen.
-- Namen schreiben: deutsche oder lateinische Namen anhand der Tafel eingeben.
-- Lerntutor: Fragen zu Skripten oder Abfrage mit einer Frage pro Runde, mit PDF-Fundstellen.
-- Bibliothek: alle Original-PDFs inklusive der vier Köhler-Bände.
-- Fortschritt pro Browser, getrennte temporäre Chats und serverseitige Antwortprüfung.
+- Schnelllernen: lateinische Namen aufdecken, Deutsch optional anzeigen und Karten einstufen.
+- Pflanzen erkennen: ähnliche lateinische Namen vergleichen.
+- Namen schreiben: den vollständigen Namen, die Gattung oder das Art-Epitheton prüfen.
+- Karteikasten: Pflanzen mit Quellen und Bildstatus, Lernstufen pro Browser.
+- Lerntutor: Fragen zu Skripten oder Abfrage mit PDF-Fundstellen.
+- Bibliothek: Original-PDFs in Ausbildung, Fachliteratur und Ergänzungen.
 
 ## Lokal starten
 
@@ -19,6 +19,20 @@ python -m venv .venv
 ```
 
 Dann http://127.0.0.1:8787 öffnen. Eigene Unterlagen müssen vor dem ersten Start importiert werden.
+
+## Lokalen Lerntutor starten
+
+Ollama auf demselben Rechner starten und ein lokales Modell laden. Die App
+verwendet Ollama unter `127.0.0.1:11434` und verlinkt zitierte PDF-Seiten.
+
+```sh
+ollama pull qwen3:4b-instruct-2507-q4_K_M
+WILDKRAEUTER_LOCAL_MODEL=qwen3:4b-instruct-2507-q4_K_M .venv/bin/python app/server.py
+```
+
+Auf Neo zuerst Ollama auf dem Server bereitstellen und das Modell dort laden.
+Dann beim Herbarium `localTutorModel = "qwen3:4b-instruct-2507-q4_K_M"` setzen. Der lokale Modus
+hat Vorrang vor Hermes und verwendet keine Codex-Anmeldung.
 
 ## Auf Neo installieren
 
@@ -34,7 +48,7 @@ sourceDirectory = "/srv/unterlagen/Wildkräuterschule"
 tutorEnabled = false
 ```
 
-Aktivieren. Die Karte **Wildkräuterschule** öffnet die App hinter SWAG und tinyauth. Alle Daten liegen im Neo-Appdata-Verzeichnis. Der erste Start importiert die PDFs; bei 1'879 Seiten dauert er etwas. Ein leerer Unterlagenpfad verwendet den vorhandenen Import. Erneuter Start mit gesetztem Pfad importiert erneut. Acht Tafeln sind manuell mit Band und PDF-Seite zugeordnet; weitere geprüfte Karten in `tools/import_sources.py` ergänzen. Die vier Bände sind vollständig in der Bibliothek, nicht alle historischen Tafeln sind schon Lernkarten.
+Aktivieren. Die Karte **Wildkräuterschule** öffnet die App hinter SWAG und tinyauth. Alle Daten liegen im Neo-Appdata-Verzeichnis. Der erste Start importiert die PDFs; bei 1'879 Seiten dauert er etwas. Ein leerer Unterlagenpfad verwendet den vorhandenen Import. Erneuter Start mit gesetztem Pfad importiert erneut. Weitere geprüfte Tafeln lassen sich in `tools/import_sources.py` mit Band und PDF-Seite zuordnen. Die vier Bände bleiben vollständig in der Bibliothek.
 
 ## Codex über Neo verbinden
 
@@ -51,7 +65,7 @@ Der Tutor nutzt den gemeinsamen Hermes-Assistenten. Anweisungen untersagen Werkz
 
 Alle Inhalte und Bilder werden ausschliesslich aus dem angegebenen lokalen Unterlagenordner importiert. Keine Webbilder, keine generierten Pflanzenbilder. Die Tafelausschnitte blenden gedruckte Namen aus. Textsuche verwendet die vorhandene PDF-Textebene; kein zusätzliches OCR. Der Tutor zieht nur die neueren Skripte heran, nicht historische medizinische Angaben aus Köhler. Quellenbindung wird dem Modell vorgegeben; Antworten müssen anhand der verlinkten Originalseiten prüfbar bleiben.
 
-Der lokale Import enthält 27 PDFs, 1'879 textführende Seiten und acht kuratierte Bildkarten. Die Kursunterlagen bleiben unversioniert unter `data/`; nicht öffentlich hochladen. Der App-Code steht unter MIT, die mitgebrachten Unterlagen behalten ihre eigenen Rechte.
+Der lokale Import enthält 27 PDFs und 1'879 textführende Seiten. Die Kartenauswahl bündelt die Wildfrüchteliste, die Pflanzenporträts des Wurzelskripts, ausgewählte Forschungsaufträge und die ursprünglichen Bildkarten. Der Karteikasten zeigt unter **Ohne zugeordnete Tafel**, welche Pflanzen noch ein Lernbild brauchen. Die Kursunterlagen bleiben unversioniert unter `data/`; nicht öffentlich hochladen. Der App-Code steht unter MIT, die mitgebrachten Unterlagen behalten ihre eigenen Rechte.
 
 ## Prüfen
 
