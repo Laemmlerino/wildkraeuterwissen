@@ -1,0 +1,64 @@
+{
+  "scorzoneroides-autumnalis": {
+    "latin": "Leontodon autumnalis",
+    "de": "Herbst-Milchkraut",
+    "reason": "Die Schweizer Checkliste führt die Art unter Leontodon und nennt sie Herbst-Milchkraut. Der bisherige wissenschaftliche Name ist eine alternative Gattungszuordnung.",
+    "url": "https://www.infoflora.ch/de/flora/leontodon-autumnalis.html"
+  },
+  "saponaria-officinalis": {
+    "latin": "Saponaria officinalis",
+    "de": "Echtes Seifenkraut",
+    "reason": "InfoFlora verwendet den genaueren deutschen Artnamen. Der lateinische Name bleibt gleich.",
+    "url": "https://www.infoflora.ch/de/flora/saponaria-officinalis.html"
+  },
+  "schoenoplectus-lacustris": {
+    "latin": "Schoenoplectus lacustris",
+    "de": "See-Flechtbinse",
+    "reason": "See-Flechtbinse steht bei InfoFlora als erster deutscher Name. Gemeine Teichbinse ist dort ebenfalls aufgeführt.",
+    "url": "https://www.infoflora.ch/de/flora/schoenoplectus-lacustris.html"
+  },
+  "atropa-belladonna": {
+    "latin": "Atropa bella-donna",
+    "de": "Tollkirsche",
+    "reason": "Die Schweizer Checkliste und die neue Pflanzenliste schreiben das Art-Epitheton mit Bindestrich. Die Schreibweise ohne Bindestrich steht in anderen Referenzen.",
+    "url": "https://www.infoflora.ch/de/flora/atropa-bella-donna.html"
+  },
+  "bistorta-officinalis": {
+    "latin": "Polygonum bistorta",
+    "de": "Schlangen-Knöterich",
+    "reason": "Die neue Pflanzenliste und InfoFlora führen diese Art unter Polygonum. Bistorta officinalis ist eine alternative Gattungszuordnung.",
+    "url": "https://www.infoflora.ch/de/flora/polygonum-bistorta.html"
+  },
+  "mutellina-adonidifolia": {
+    "latin": "Ligusticum mutellina",
+    "de": "Alpen-Mutterwurz",
+    "reason": "InfoFlora verwendet Ligusticum mutellina. Die Kursliste nennt beide Namen.",
+    "url": "https://www.infoflora.ch/de/flora/ligusticum-mutellina.html"
+  },
+  "thymus-pulegioides": {
+    "latin": "Thymus pulegioides",
+    "de": "Arznei-Feld-Thymian",
+    "reason": "InfoFlora präzisiert den deutschen Namen. In der Kursliste steht diese Art in derselben Zeile wie Thymus serpyllum.",
+    "url": "https://www.infoflora.ch/de/flora/thymus-pulegioides.html"
+  },
+  "atriplex-hortensis": {
+    "latin": "Atriplex hortensis",
+    "de": "Gartenmelde",
+    "family": "Amaranthaceae",
+    "reason": "Die Kursliste verwendet Chenopodiaceae. Die Schweizer Referenz ordnet Atriplex den Amaranthaceae zu.",
+    "url": "https://www.infoflora.ch/de/flora/taxonomie.html#neue-systematik-der-pflanzenfamilien"
+  },
+  "claytonia-perfoliata": {
+    "latin": "Claytonia perfoliata",
+    "de": "Gewöhnliches Tellerkraut",
+    "family": "Montiaceae",
+    "reason": "Die Kursliste verwendet Portulacaceae. Die Schweizer Referenz führt Claytonia unter Montiaceae.",
+    "url": "https://www.infoflora.ch/de/flora/taxonomie.html#neue-systematik-der-pflanzenfamilien"
+  },
+  "rubus-fruticosus": {
+    "latin": "Rubus fruticosus aggr.",
+    "de": "Echte Brombeere",
+    "reason": "Die Schweizer Checkliste führt die Echte Brombeere als Artengruppe. Die Karte gehört deshalb nicht in Aufgaben, die eine einzelne Art voraussetzen.",
+    "url": "https://www.infoflora.ch/de/flora/rubus-fruticosus-aggr.html"
+  }
+}

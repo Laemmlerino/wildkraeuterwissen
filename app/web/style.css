@@ -32,3 +32,66 @@ header{justify-content:flex-end}
 .pill{white-space:nowrap;align-self:start}
 @media(max-width:960px){aside{position:static;width:100%;height:auto;padding:18px}main{margin:0;padding-inline:20px}nav{display:flex;overflow:auto;margin-top:16px}nav button{white-space:nowrap}}
 @media(max-width:680px){.hero,.cards,.plant-layout{grid-template-columns:1fr}.hero img{height:240px}.plate{min-height:150px}.plate img{max-height:58vh}.toolbar label{width:100%}.doc{gap:8px;overflow-wrap:anywhere}}
+.review-nav{margin-top:16px}
+.deck-image{display:block;max-width:min(100%,320px);max-height:360px;object-fit:contain;margin-bottom:6px}
+.test-plant-image{display:block;max-width:100%;max-height:420px;object-fit:contain}
+.leaf-diagram{display:block;max-width:100%;height:auto;background:#f8f7ed;border:1px solid var(--line);margin:12px 0}
+
+.herb-layout {
+  display: grid;
+  grid-template-columns: minmax(140px, 260px) minmax(0, 1fr);
+  gap: clamp(16px, 4vw, 36px);
+  align-items: start;
+  margin-block: 16px;
+}
+.herb-without-image { grid-template-columns: minmax(0, 1fr); }
+.herb-pictures {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.herb-pictures figure { margin: 0; }
+.herb-pictures a:has(img) {
+  display: grid;
+  place-items: center;
+  background: #e5e8d8;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.herb-pictures img {
+  display: block;
+  width: 100%;
+  height: clamp(180px, 30vw, 250px);
+  object-fit: contain;
+}
+.herb-pictures figcaption { font-size: .8rem; overflow-wrap: anywhere; }
+.herb-pictures figcaption p { margin: 4px 0 0; }
+.herb-fields h3:first-child, .herb-layout h2:first-child { margin-top: 0; }
+.herb-test-options button { font: inherit; }
+.herb-next { margin-top: 12px; }
+@media (max-width: 680px) {
+  .herb-layout { grid-template-columns: minmax(0, 1fr); }
+  .herb-pictures { grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); }
+  .herb-pictures img { height: 180px; }
+}
+
+.learning-progress { margin-block: 24px 36px; }
+.progress-groups, .library-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+  gap: 16px;
+}
+.progress-group, .library-gallery article {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  min-width: 0;
+}
+.progress-group h3, .library-gallery h3 { margin: 0; }
+.progress-group progress { width: 100%; accent-color: var(--green); }
+.library-gallery { margin-top: 16px; }
+.library-thumbs { display: flex; flex-wrap: wrap; gap: 12px; }
+.library-thumbs figure { margin: 0; flex: 1 1 115px; min-width: 0; }
+.library-thumbs img { width: 100%; height: 140px; object-fit: contain; background: #e5e8d8; }
+.library-thumbs figcaption { overflow-wrap: anywhere; }

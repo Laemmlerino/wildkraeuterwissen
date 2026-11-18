@@ -35,6 +35,31 @@ class LearningTest(unittest.TestCase):
    task=self.call('/api/challenge?id=a')
    self.assertEqual({option['label'] for option in task['options']},{'Taraxacum officinale','Melissa officinalis'})
    self.assertTrue(self.call('/api/answer',{'challenge':task['challenge'],'mode':mode,'answer':answer})['correct'])
+ def test_name_review_applies_only_after_confirmation_and_can_be_reset(self):
+  proposal={'latin':'Leontodon autumnalis','de':'Herbst-Milchkraut','reason':'', 'url':'https://www.infoflora.ch/'}
+  server.NAME_PROPOSALS['a']=proposal
+  self.addCleanup(server.NAME_PROPOSALS.pop,'a',None)
+  self.addCleanup((server.DATA/'name-decisions.json').unlink,missing_ok=True)
+  self.assertEqual(self.call('/api/card?id=a')['latin'],'Taraxacum officinale')
+  self.assertIsNone(self.call('/api/name-review')[0]['decision'])
+  self.call('/api/name-review',{'id':'a','choice':'accept'})
+  self.assertEqual(self.call('/api/card?id=a')['latin'],proposal['latin'])
+  task=self.call('/api/challenge?id=a')
+  self.assertIn(proposal['latin'],[item['label'] for item in task['options']])
+  self.assertTrue(self.call('/api/answer',{'challenge':task['challenge'],'mode':'latin','answer':proposal['latin']})['correct'])
+  self.call('/api/name-review',{'id':'a','choice':'reset'})
+  self.assertEqual(self.call('/api/card?id=a')['latin'],'Taraxacum officinale')
+ def test_image_review_saves_note_and_rejects_outdated_picture(self):
+  self.addCleanup((server.DATA/'image-decisions.json').unlink,missing_ok=True)
+  body=dict(id='a',image='/images/a.png',choice='replace',note='Die ganze Pflanze')
+  self.assertEqual(self.call('/api/image-review',body)['review']['note'],body['note'])
+  card=next(p for p in self.call('/api/deck') if p['id']=='a')
+  self.assertEqual(card['image_review']['choice'],'replace')
+  with self.assertRaises(error.HTTPError) as ctx:
+   self.call('/api/image-review',dict(body,image='/images/old.png',choice='accept'))
+  self.assertEqual(ctx.exception.code,409)
+  ctx.exception.close()
+  self.assertIsNone(self.call('/api/image-review',dict(body,choice='reset'))['review'])
  def test_wrong_latin_rejected(self):
   c=self.call('/api/challenge');self.assertFalse(self.call('/api/answer',{'challenge':c['challenge'],'mode':'latin','answer':'unknown'})['correct'])
  def test_csrf_required(self):

@@ -20,6 +20,17 @@ python -m venv .venv
 
 Dann http://127.0.0.1:8787 öffnen. Eigene Unterlagen müssen vor dem ersten Start importiert werden.
 
+Die ergänzende Datei `Pflanzenliste.pdf` wird beim Import als Kursliste
+erkannt. Die Karten behalten ihre stabilen IDs. Bildnachweise liegen mit den
+Fotos unter `data/` und erscheinen bei der Lösung und im Karteikasten.
+
+```sh
+.venv/bin/python tools/fetch_plant_photos.py data
+```
+
+Der Fotolauf ist wiederholbar und ergänzt Karten, für die eine eindeutig
+zugeordnete, nachnutzbare Aufnahme bei iNaturalist oder Wikimedia Commons verfügbar ist.
+
 ## Lokalen Lerntutor starten
 
 Ollama auf demselben Rechner starten und ein lokales Modell laden. Die App
@@ -35,6 +46,14 @@ Dann beim Herbarium `localTutorModel = "qwen3:4b-instruct-2507-q4_K_M"` setzen. 
 hat Vorrang vor Hermes und verwendet keine Codex-Anmeldung.
 
 ## Auf Neo installieren
+
+Für die Übernahme der lokalen Bibliothek in der lokalen App unter **Bibliothek**
+das ZIP-Paket herunterladen. Auf der angemeldeten Neo-Instanz unter **Bibliothek**
+**Bibliothek auf Neo hochladen** wählen und das ZIP auswählen. Für diesen Weg
+`sourceDirectory` leer lassen. Das Paket enthält die PDFs, Fotos, botanischen
+Tafeln, Quellenangaben und Namens- und Bildentscheide. Der Lernfortschritt wird im
+jeweiligen Browser gespeichert. Der Upload steht zur Ersteinrichtung einer leeren
+Bibliothek zur Verfügung und übernimmt ZIP-Dateien bis 1 GiB.
 
 Das Plugin-Verzeichnis auf den Neo-Server kopieren oder in einem eigenen Git-Repository bereitstellen. Die Unterlagen sind absichtlich nicht im Git-Repository enthalten. Den Unterlagenordner separat auf den Server kopieren, für `homeserver` lesbar. In Neo unter **Einstellungen → System → Plugins** die URL eintragen (z.B. `git+file:/srv/plugins/wildkraeuter-neo` oder die eigene Repository-URL). Konfiguration:
 

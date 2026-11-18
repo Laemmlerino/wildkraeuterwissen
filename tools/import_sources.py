@@ -3,6 +3,9 @@ import argparse, hashlib, json, re, shutil, unicodedata
 from pathlib import Path
 import pymupdf
 from course_cards import course_cards
+from official_list import official_rows
+from herb_profiles import herb_profiles
+from study_plates import study_plates
 
 # Manually matched to the actual plates in the supplied first Köhler volume.
 PLATES = [
@@ -33,7 +36,7 @@ def build(source, output):
  if not pdfs: raise ValueError('Keine PDF-Unterlagen gefunden')
  (output/'images').mkdir(parents=True,exist_ok=True)
  (output/'documents').mkdir(exist_ok=True)
- pages=[]; docs=[]; plants=[]; atlases=[]
+ pages=[]; docs=[]; plants=[]; atlases=[]; school=[]
  for p in pdfs:
   ident=hashlib.sha256(str(p.relative_to(source)).encode()).hexdigest()[:16]
   shutil.copyfile(p,output/'documents'/f'{ident}.pdf')
@@ -43,6 +46,8 @@ def build(source, output):
   for n,page in enumerate(doc):
    text=page.get_text().strip()
    if text: pages.append(dict(doc=ident,title=p.name,page=n+1,text=text))
+  if p.name.casefold()=='pflanzenliste.pdf':
+   school.extend((row,ident,p.name) for row in official_rows(doc))
   if re.search(r'V_[1-4]\.pdf$',p.name):
    atlases.append((docs[-1], doc))
   else:
@@ -57,6 +62,21 @@ def build(source, output):
       de=de,latin=latin,aliases=[],image=None,source=None,excerpts=[]))
   plant.setdefault('course',ref)
   if latin.endswith(' spp.'):
+   plant['group']=True
+ equivalent={'Leontodon autumnalis':'Scorzoneroides autumnalis',
+             'Polygonum bistorta':'Bistorta officinalis','Crataegus':'Crataegus spp.'}
+ for row,doc,title in school:
+  latin=row['latin']
+  key=equivalent.get(latin,latin)
+  plant=by_latin.setdefault(key,dict(id=re.sub(r'[^a-z]+','-',key.casefold()).strip('-'),
+      de=row['de'],latin=key,aliases=[],image=None,source=None,excerpts=[]))
+  ref=dict(doc=doc,title=title,page=row['page'])
+  plant.setdefault('school',ref)
+  plant.setdefault('family',row['family'])
+  sections=plant.setdefault('sections',[])
+  if row['section'] not in sections:
+   sections.append(row['section'])
+  if row['group']:
    plant['group']=True
  plants=sorted(by_latin.values(),key=lambda p:p['latin'])
  for metadata, doc in atlases:
@@ -93,7 +113,8 @@ def build(source, output):
   terms=[plant['latin'],plant['de'],*plant['aliases']]
   matches=[p for p in pages if 'Medizinal Buch' not in p['title'] and any(norm(t) in norm(p['text']) for t in terms)]
   plant['excerpts']=[dict(doc=p['doc'],title=p['title'],page=p['page'],text=p['text'][:3500]) for p in matches[:4]]
- catalog=dict(plants=plants,documents=docs,pages=pages)
+ catalog=dict(plants=plants,documents=docs,pages=pages, herb_profiles=list(herb_profiles(pages, plants)))
+ study_plates(catalog['herb_profiles'],output,plants,docs)
  temporary=output/'catalog.tmp'
  temporary.write_text(json.dumps(catalog,ensure_ascii=False),encoding='utf-8')
  temporary.replace(output/'catalog.json')

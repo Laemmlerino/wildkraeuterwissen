@@ -26,6 +26,8 @@
             WILDKRAEUTER_DATA = appdata;
             PORT = toString cfg.port;
             NEO_UI_URL = if domain == null then "" else "https://${neo.subdomain}.${domain}";
+          } // lib.optionalAttrs (cfg.auth.enabled && config.neo.services.tinyauth.enabled && cfg.sourceDirectory == "") {
+            WILDKRAEUTER_LIBRARY_UPLOAD = "1";
           } // lib.optionalAttrs localTutor {
             WILDKRAEUTER_LOCAL_MODEL = cfg.localTutorModel;
           } // lib.optionalAttrs tutorReady {
