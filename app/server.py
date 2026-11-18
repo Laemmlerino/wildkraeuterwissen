@@ -30,14 +30,16 @@ def retrieve(question, pages, limit=6, fallback=True):
 
 def local_sources(question, pages, quiz=False):
  words=set(re.findall(r'\w{3,}',question.casefold()))-set(
-  'eine einen einer oder bitte frage mich über diese sind welche was ist die der das und den mit aus bei zum zur bedeutet kann für wie gibt erkläre mir uns von dem auf'.split())
+  'eine einen einer oder bitte frage mich über diese sind welche was ist die der das und den mit aus bei zum zur bedeutet kann für wie gibt erkläre mir uns von dem auf skript nennt'.split())
+ terms={word[:-1] if len(word)>6 and word.endswith('ern')
+        else word[:-2] if word.endswith('ischen') else word for word in words}
  matches=[]
- hits={word:0 for word in words}
+ hits={word:0 for word in terms}
  for page in pages:
   if 'Medizinal Buch' in page['title']:
    continue
   text=page['text'].casefold()
-  counts={word:text.count(word) for word in words}
+  counts={word:text.count(word) for word in terms}
   if any(counts.values()):
    matches.append((page,counts))
    for word,count in counts.items():
