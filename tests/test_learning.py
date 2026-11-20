@@ -2,6 +2,10 @@ import http.cookiejar, json, os, sys, tempfile, threading, unittest
 from pathlib import Path
 from urllib import request, error
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'app'))
+from unittest.mock import patch
+from urllib.parse import quote
+
+import pymupdf
 import server
 
 class LearningTest(unittest.TestCase):
@@ -84,6 +88,60 @@ class LearningTest(unittest.TestCase):
   pages=[*generic,historical,specific]
   self.assertEqual(server.local_sources('Was bedeutet kreuzgegenständig bei Blättern?',pages)[0],specific)
   self.assertEqual(server.local_sources('Quantenverschränkung',pages),[])
+ def test_managed_pdf_upload_rename_and_delete(self):
+  with pymupdf.open() as pdf:
+   pdf.new_page().insert_text((40, 40), 'Die Narbe nimmt Pollen auf.')
+   payload=pdf.tobytes()
+  headers={'Content-Type':'application/pdf','X-Filename':quote('Blüte.pdf'),
+           'X-CSRF-Token':self.boot['csrf']}
+  upload=request.Request(self.base+'/api/documents/upload',data=payload,headers=headers)
+  with patch.dict(os.environ,{'WILDKRAEUTER_LIBRARY_UPLOAD':'1'}):
+   with self.client.open(upload) as response:
+    self.assertEqual(response.status,201)
+    document=json.load(response)
+   ident=document['id']
+   self.addCleanup(server.shutil.rmtree,server.DATA/'managed-documents',ignore_errors=True)
+   self.assertEqual(self.call('/api/bootstrap')['documents'],[document])
+   self.assertIn('nimmt Pollen',server.catalog()['pages'][0]['text'])
+   with self.assertRaises(error.HTTPError) as ctx:self.client.open(upload)
+   self.assertEqual(ctx.exception.code,409);ctx.exception.close()
+   with self.client.open(self.base+f'/documents/{ident}.pdf') as response:
+    self.assertEqual(response.read(),payload)
+   self.call('/api/documents/rename',{'id':ident,'title':'Bestäubung'})
+   self.assertEqual(server.catalog()['pages'][0]['title'],'Bestäubung.pdf')
+   self.call('/api/documents/delete',{'id':ident})
+   self.assertEqual(self.call('/api/bootstrap')['documents'],[])
+   self.assertEqual(server.catalog()['pages'],[])
+   with self.assertRaises(error.HTTPError) as ctx:self.client.open(self.base+f'/documents/{ident}.pdf')
+   self.assertEqual(ctx.exception.code,404);ctx.exception.close()
+ def test_managed_image_upload_preview_and_delete(self):
+  pixmap=pymupdf.Pixmap(pymupdf.csRGB,pymupdf.IRect(0,0,2,2),False)
+  pixmap.clear_with(255)
+  payload=pixmap.tobytes('png')
+  headers={'Content-Type':'image/png','X-Filename':quote('Blüte.png'),
+           'X-CSRF-Token':self.boot['csrf']}
+  upload=request.Request(self.base+'/api/images/upload',data=payload,headers=headers)
+  with patch.dict(os.environ,{'WILDKRAEUTER_LIBRARY_UPLOAD':'1'}):
+   with self.client.open(upload) as response:
+    self.assertEqual(response.status,201)
+    image=json.load(response)
+   self.addCleanup(server.shutil.rmtree,server.DATA/'managed-documents',ignore_errors=True)
+   self.assertEqual(self.call('/api/bootstrap')['managedImages'],[image])
+   with self.client.open(self.base+image['image']) as response:
+    self.assertEqual(response.headers.get_content_type(),'image/png')
+    self.assertEqual(response.read(),payload)
+   self.call('/api/images/delete',{'id':image['id']})
+   with self.assertRaises(error.HTTPError) as ctx:self.client.open(self.base+image['image'])
+   self.assertEqual(ctx.exception.code,404);ctx.exception.close()
+ def test_tutor_uses_question_sources_to_check_paraphrased_answer(self):
+  page=dict(title='01_Einstiegsmodul_Modulskript.pdf',doc='intro',page=5,text='Licht liefert Energie für die Fotosynthese.')
+  with patch.object(server,'catalog',return_value={'pages':[page]}),patch.object(server,'hermes_chat',return_value='Antwort [1]') as tutor:
+   self.call('/api/chat',{'message':'Frage mich zu den Grundlagen ab.'})
+   self.call('/api/chat',{'message':'Sonnenstrahlen treiben den Vorgang an.'})
+   self.assertEqual(tutor.call_args.args[2],[page])
+   self.call('/api/chat/reset',{})
+   self.call('/api/chat',{'message':'Sonnenstrahlen treiben den Vorgang an.'})
+   self.assertEqual(tutor.call_args.args[2],[])
  def test_unconnected_tutor_is_explicit(self):
   with self.assertRaises(ValueError):server.hermes_chat({},'Hallo',[],[])
 if __name__=='__main__':unittest.main()

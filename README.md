@@ -6,6 +6,7 @@ Deutschsprachiges Lernatelier mit originalen Bildern aus den eigenen Unterlagen.
 - Pflanzen erkennen: ähnliche lateinische Namen vergleichen.
 - Namen schreiben: den vollständigen Namen, die Gattung oder das Art-Epitheton prüfen.
 - Karteikasten: Pflanzen mit Quellen und Bildstatus, Lernstufen pro Browser.
+- Steckbriefe: Merkmale, Vorkommen, Inhaltsstoffe und weitere Angaben aus den Kursskripten.
 - Lerntutor: Fragen zu Skripten oder Abfrage mit PDF-Fundstellen.
 - Bibliothek: Original-PDFs in Ausbildung, Fachliteratur und Ergänzungen.
 
@@ -18,7 +19,7 @@ python -m venv .venv
 .venv/bin/python app/server.py
 ```
 
-Dann http://127.0.0.1:8787 öffnen. Eigene Unterlagen müssen vor dem ersten Start importiert werden.
+Dann http://127.0.0.1:8787 öffnen. Der Import richtet die Kursbibliothek und die Pflanzenkarten ein.
 
 Die ergänzende Datei `Pflanzenliste.pdf` wird beim Import als Kursliste
 erkannt. Die Karten behalten ihre stabilen IDs. Bildnachweise liegen mit den
@@ -30,6 +31,24 @@ Fotos unter `data/` und erscheinen bei der Lösung und im Karteikasten.
 
 Der Fotolauf ist wiederholbar und ergänzt Karten, für die eine eindeutig
 zugeordnete, nachnutzbare Aufnahme bei iNaturalist oder Wikimedia Commons verfügbar ist.
+
+## Lernmaterial in der App verwalten
+
+Unter **Dateiverwaltung** kannst du mehrere PDFs (bis 100 MB pro Datei) auswählen,
+öffnen, umbenennen oder löschen. Die PDFs erscheinen in der **Bibliothek**.
+Auch PNG-, JPEG- und WebP-Bilder bis 20 MB lassen sich hochladen. Der Lerntutor kann den vorhandenen PDF-Text als Quelle verwenden. Bei reinen
+Scans braucht es dafür eine OCR-Textebene.
+
+Auf Neo ist der Tab nach der Anmeldung über tinyauth für Uploads freigeschaltet.
+Für einen lokalen Start mit Uploads:
+
+```sh
+WILDKRAEUTER_LIBRARY_UPLOAD=1 .venv/bin/python app/server.py
+```
+
+Das Bibliotheks-ZIP enthält die Pflanzenkarten, Bilder, Kursunterlagen sowie
+direkt hochgeladene PDFs und Bilder. Direkt hochgeladene PDFs lassen sich nach der
+Übernahme weiterhin in der Dateiverwaltung bearbeiten.
 
 ## Lokalen Lerntutor starten
 

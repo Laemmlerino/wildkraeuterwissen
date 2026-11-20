@@ -30,7 +30,7 @@ function save() {
   try {
     localStorage.setItem('herbarium-progress', JSON.stringify(progress));
   } catch {
-    document.querySelector('#saved').textContent = 'Fortschritt konnte nicht gespeichert werden';
+    notice.textContent = 'Fortschritt konnte nicht gespeichert werden.';
   }
 }
 
@@ -64,7 +64,7 @@ try {
 const levels = ['Neu', 'In Übung', 'Sicher'];
 const level = plant => Math.min(2, progress.cards[plant.id] ?? Number(progress.seen.includes(plant.id)));
 const modes = {
-  quick: ['Pflanzenwissen', 'Steckbriefe aus den Kursunterlagen nachschlagen und in fünf Fragen üben.'],
+  quick: ['Steckbriefe', 'Steckbriefe aus den Kursunterlagen nachschlagen und in fünf Fragen üben.'],
   choice: ['Pflanzen erkennen', 'Wähle den passenden lateinischen Namen.'],
   write: ['Namen schreiben', 'Übe den ganzen Namen, die Gattung oder das Art-Epitheton.']
 };
@@ -83,7 +83,7 @@ function home() {
   ];
   view.innerHTML = `<div class="hero"><div><h1>Wildkräuter<br>lernen</h1>
     <p class="sub">${boot.plants.length} Karten · ${boot.plants.filter(plant => plant.image).length} mit Bild</p>
-    <button class="primary" data-go="quick">Pflanzenwissen öffnen</button></div>
+    <button class="primary" data-go="quick">Steckbriefe öffnen</button></div>
     ${specimen?.image ? `<img src="${esc(specimen.image)}" alt="Botanische Tafel der Schafgarbe">` : ''}</div>
     <section aria-labelledby="progress-heading" class="learning-progress">
     <h2 id="progress-heading">Dein Lernfortschritt</h2>
@@ -100,7 +100,7 @@ function home() {
     )).join('')}</div>`;
 }
 
-async function go(next) {
+async function go(next, profileId) {
   if (next === 'course-deck' || next === 'other-deck') {
     rememberScope(next === 'course-deck' ? 'script' : 'other');
     next = 'deck';
@@ -113,7 +113,8 @@ async function go(next) {
   if (mode === 'chat') return chat();
   if (mode === 'botany') return botany(false);
   if (mode === 'botany-test') return botany(true);
-  if (mode === 'quick') return herbKnowledge();
+  if (mode === 'quick') return herbKnowledge(profileId);
+  if (mode === 'files') return fileManagement();
   if (mode === 'library') return library();
   if (mode === 'deck' || mode === 'missing') return deck(mode === 'missing' ? 'missing' : plantScope);
   if (mode === 'school') return deck('school');
@@ -259,7 +260,7 @@ async function deck(filterMode) {
   const token = round;
   const plants = await api('/api/deck');
   if (token !== round) return;
-  view.innerHTML = `<div class="workspace"><h1>Steckbriefe</h1>
+  view.innerHTML = `<div class="workspace"><h1>Karteikasten</h1>
     <div class="toolbar"><button class="secondary" data-go="names">Namen prüfen</button><button class="secondary" data-go="images">Bilder prüfen</button><label>Pflanzen <select id="card-scope">${scopeOptions()}</select></label><label>Ansicht <select id="deck-filter"><option value="all">Alle Karten</option><option value="missing">Ohne botanische Tafel</option>
     ${levels.map((name, index) => `<option value="${index}">${name}</option>`).join('')}</select></label><label>Pflanze suchen <input id="deck-search" type="search" placeholder="Name, Familie …"></label></div>
     <p id="deck-count" role="status"></p><div id="deck-list"></div></div>`;
@@ -276,6 +277,7 @@ async function deck(filterMode) {
     document.querySelector('#deck-count').textContent = `${selected.length} ${selected.length === 1 ? 'Karte' : 'Karten'}`;
     document.querySelector('#deck-list').innerHTML = selected.map(plant => `<details class="folder"><summary><i>${esc(plant.latin)}</i> <span>${plant.study_plate ? 'Botanische Tafel' : 'Ohne Tafel'} · ${levels[level(plant)]}</span></summary>
       ${plantInfo(plant, false)}
+      ${plant.script_course ? `<a class="source" href="#steckbrief=${encodeURIComponent(plant.id)}">Vollständigen Steckbrief öffnen</a>` : ''}
       <p class="sub">Name: ${levels[progress.skills[plant.id]?.name ?? 0]} · Foto: ${levels[progress.skills[plant.id]?.photo ?? 0]} · Merkmale: ${levels[progress.skills[plant.id]?.features ?? 0]}</p>
       ${plant.sections?.length ? `<p>${esc(plant.sections.join(' · '))}</p>` : ''}
       ${plant.study_plate ? `<a class="source" href="${esc(plant.study_plate.image)}" target="_blank" rel="noopener">
@@ -297,7 +299,7 @@ async function reviewImages() {
   const plants = (await api('/api/deck')).filter(plant => plant.image);
   if (token !== round) return;
   const selectedId = new URLSearchParams(location.hash.slice(1)).get('bilder-pruefen');
-  view.innerHTML = `<div class="workspace"><button class="secondary" data-go="deck">← Steckbriefe</button>
+  view.innerHTML = `<div class="workspace"><button class="secondary" data-go="deck">← Karteikasten</button>
     <h1>Bilder prüfen</h1>
     <div class="toolbar"><label>Ansicht <select id="image-review-filter"><option value="all">Alle Bilder</option>
     ${Object.entries(imageReviewLabels).map(([value,label]) => `<option value="${value}">${label}</option>`).join('')}</select></label>
@@ -368,7 +370,7 @@ async function reviewNames() {
   let index = Math.max(0, records.findIndex(pending));
   function render() {
     const record = records[index];
-    view.innerHTML = `<div class="workspace"><button class="secondary" data-go="deck">← Steckbriefe</button>
+    view.innerHTML = `<div class="workspace"><button class="secondary" data-go="deck">← Karteikasten</button>
       <h1>Namen prüfen</h1><p role="status">${records.filter(pending).length} offen · ${records.length} Vorschläge</p>
       ${record ? `<article class="result"><h2>Vorschlag ${index + 1} von ${records.length}</h2>
         <p><strong>Bisher</strong><br><i>${esc(record.latin)}</i> · ${esc(record.de)}${record.proposal.family && record.family ? ` · ${esc(record.family)}` : ''}</p>
@@ -491,12 +493,12 @@ function library() {
   const priority = title => /^\d{2}-\d{2}_Wildkräuterskript|Modulskript|_Skript| Skript|^Pflanzenliste/u.test(title.normalize('NFC')) ? 0 : 1;
   view.innerHTML = `<div class="workspace"><h1>Bibliothek</h1><p class="sub">${boot.documents.length} Originaldokumente</p>
     <div class="row">
-      ${boot.documents.length ? '<a class="secondary" href="/api/library-package" download>Bibliothek für Neo herunterladen</a>' : ''}
-      ${boot.libraryUpload && !boot.documents.length ? '<button class="primary" id="library-upload">Bibliothek auf Neo hochladen</button><input type="file" id="library-file" accept=".zip,application/zip" hidden>' : ''}
+      ${boot.coursePackage ? '<a class="secondary" href="/api/library-package" download>Bibliothek für Neo herunterladen</a>' : ''}
+      ${boot.libraryUpload && !boot.coursePackage ? '<button class="primary" id="library-upload">Bibliothek auf Neo hochladen</button><input type="file" id="library-file" accept=".zip,application/zip" hidden>' : ''}
     </div>
-    <p class="sub">${boot.libraryUpload && !boot.documents.length
+    <p class="sub">${boot.libraryUpload && !boot.coursePackage
       ? 'Wähle das ZIP-Paket aus deinem lokalen Herbarium. Es enthält Skripte, Fotos und botanische Tafeln.'
-      : !boot.libraryUpload && boot.documents.length ? 'Das ZIP-Paket kannst du in der Bibliothek deiner Neo-Instanz hochladen.' : ''}</p>
+      : !boot.libraryUpload && boot.coursePackage ? 'Das ZIP-Paket kannst du in der Bibliothek deiner Neo-Instanz hochladen.' : ''}</p>
     <p id="library-status" role="status"></p>
     <details class="folder" id="library-pictures"><summary>Pflanzenfotos und botanische Tafeln</summary><div id="library-picture-list"></div></details>
     ${Object.entries(sections).map(([group, docs]) => `<details class="folder"><summary>${group} <span>${docs.length} PDFs</span></summary>
@@ -556,22 +558,138 @@ function library() {
     };
   }
 }
+function fileManagement(message = '') {
+  const uploads = boot.documents.filter(doc => doc.managed);
+  const maxPdfMb = boot.maxPdfBytes / (1024 * 1024);
+  const maxImageMb = 20;
+  const images = boot.managedImages || [];
+  view.innerHTML = `<div class="workspace"><h1>Dateiverwaltung</h1>
+    ${boot.libraryUpload ? `<form id="pdf-upload">
+      <label>PDFs auswählen (bis ${maxPdfMb} MB je Datei)
+        <input type="file" name="pdfs" accept=".pdf,application/pdf" multiple>
+      </label>
+      <label>Bilder auswählen (PNG, JPEG oder WebP, bis 20 MB je Bild)
+        <input type="file" name="images" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" multiple>
+      </label>
+      <button class="primary">Ausgewählte Dateien hochladen</button>
+    </form>` : '<p>Uploads sind auf dieser Instanz deaktiviert.</p>'}
+    <p id="file-status" role="status">${esc(message)}</p>
+    <h2>Hochgeladene PDFs</h2>
+    <div id="uploaded-pdfs"></div><h2>Hochgeladene Bilder</h2><div id="uploaded-images"></div></div>`;
+  const status = view.querySelector('#file-status');
+  const form = view.querySelector('#pdf-upload');
+  const list = view.querySelector('#uploaded-pdfs');
+  const imageList = view.querySelector('#uploaded-images');
+  const sorted = uploads.sort((a, b) => a.title.localeCompare(b.title, 'de'));
+  list.innerHTML = sorted.map(doc => `<details class="folder">
+    <summary>${esc(doc.title)} <span>${esc(doc.pages)} S.</span></summary>
+    <a href="/documents/${esc(doc.id)}.pdf" target="_blank" rel="noopener">PDF öffnen ↗</a>
+    ${form ? `<form data-file-id="${esc(doc.id)}">
+      <label>Dateiname <input name="title" value="${esc(doc.title)}" maxlength="255" required></label>
+      <div class="row"><button class="secondary">Umbenennen</button>
+      <button class="secondary" type="button" data-delete>Löschen</button></div>
+    </form>` : ''}
+  </details>`).join('') || '<p>Hier erscheinen deine hochgeladenen Lernmaterialien.</p>';
+
+  imageList.innerHTML = images.map(image => `<article class="folder"><img src="${esc(image.image)}" alt="${esc(image.title)}" style="max-width:180px;max-height:140px"><p>${esc(image.title)}</p>${form ? `<button class="secondary" data-image-delete="${esc(image.id)}">Löschen</button>` : ''}</article>`).join('') || '<p>Hier erscheinen hochgeladene Bilder.</p>';
+  imageList.querySelectorAll('[data-image-delete]').forEach(button => {
+    button.onclick = async () => {
+      if (!window.confirm('Bild aus der Dateiverwaltung löschen?')) return;
+      try { await api('/api/images/delete', {id: button.dataset.imageDelete}); await refresh('Bild gelöscht.'); }
+      catch (error) { status.textContent = error.message; }
+    };
+  });
+
+  async function refresh(text) {
+    boot = await api('/api/bootstrap');
+    if (status.isConnected) fileManagement(text);
+  }
+
+  if (form) form.onsubmit = async event => {
+    event.preventDefault();
+    const pdfs = Array.from(form.elements.pdfs.files);
+    const imageFiles = Array.from(form.elements.images.files);
+    const files = [...pdfs.map(file => ({file, kind:'pdf'})), ...imageFiles.map(file => ({file, kind:'image'}))];
+    if (!files.length) { status.textContent = 'Bitte Dateien auswählen.'; return; }
+    const button = form.querySelector('button');
+    button.disabled = true;
+    let uploaded = 0;
+    const errors = [];
+    try {
+      for (const entry of files) {
+        const {file, kind} = entry;
+        status.textContent = `${file.name} wird hochgeladen …`;
+        try {
+          const limit = kind === 'pdf' ? boot.maxPdfBytes : maxImageMb * 1024 * 1024;
+          if (file.size > limit) throw Error(`Datei überschreitet das Limit von ${limit / 1024 / 1024} MB.`);
+          const response = await fetch(kind === 'pdf' ? '/api/documents/upload' : '/api/images/upload', {
+            method: 'POST',
+            headers: {'Content-Type': file.type, 'X-CSRF-Token': boot.csrf, 'X-Filename': encodeURIComponent(file.name)},
+            body: file
+          });
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok) throw Error(result.error || `Upload fehlgeschlagen (HTTP ${response.status}).`);
+          uploaded++;
+        } catch (error) {
+          errors.push(`${file.name}: ${error.message}`);
+        }
+      }
+      await refresh([`${uploaded} von ${files.length} Dateien hochgeladen.`, ...errors].join(' '));
+    } catch (error) {
+      status.textContent = error.message;
+    } finally {
+      button.disabled = false;
+    }
+  };
+
+  for (const editor of list.querySelectorAll('form')) {
+    const id = editor.dataset.fileId;
+    const title = editor.elements.title;
+    const initialTitle = title.value;
+    async function update(action, body, success) {
+      const controls = [...editor.elements];
+      controls.forEach(control => { control.disabled = true; });
+      try {
+        await api(`/api/documents/${action}`, {id, ...body});
+        await refresh(success);
+      } catch (error) {
+        status.textContent = error.message;
+      } finally {
+        controls.forEach(control => { control.disabled = false; });
+      }
+    }
+    editor.onsubmit = event => {
+      event.preventDefault();
+      return update('rename', {title: title.value}, 'Datei umbenannt.');
+    };
+    editor.querySelector('[data-delete]').onclick = () => {
+      if (window.confirm(`„${initialTitle}“ aus der Bibliothek löschen?`)) {
+        return update('delete', {}, 'Datei gelöscht.');
+      }
+    };
+  }
+}
+
 let messages=[];
 function bubble(who,text,refs=[]){messages.push({who,text,refs});drawMessages()}
 function drawMessages(){const el=document.querySelector('.messages');if(!el)return;el.innerHTML=messages.map(m=>`<div class="bubble ${m.who==='Du'?'user':''}"><small>${m.who}</small>${esc(m.text)}${sources(m.refs)}</div>`).join('');el.scrollTop=el.scrollHeight}
-function chat(){view.innerHTML=`<div class="workspace"><span class="eyebrow">Verstehen statt auswendig lernen</span><h1>Frag dein Herbarium.</h1><p class="sub">Dein Tutor erklärt die Grundlagen aus den Skripten und fragt dich Schritt für Schritt ab. ${boot.localTutor ? 'Deine Fragen und PDF-Auszüge verarbeitet das lokale Modell auf dem Rechner, auf dem die App läuft.' : 'Der Hermes-Modus sendet passende Skriptauszüge an den in Neo eingestellten Anbieter.'}</p><div class="row"><button class="secondary" id="quiz">Frag mich zu den Grundlagen ab</button><button class="secondary" id="reset-chat">Neues Gespräch</button>${boot.neoUrl&&!boot.localTutor?`<a class="source" target="_blank" rel="noopener" href="${esc(boot.neoUrl)}">Codex in Neo verbinden ↗</a>`:''}</div><div class="chat-shell"><div class="messages" role="log" aria-live="polite"></div><form class="chat-form" id="chat-form"><input id="chat-input" aria-label="Nachricht an den Tutor" required maxlength="4000" placeholder="Zum Beispiel: Was bedeutet kreuzgegenständig?"><button class="primary" id="send">Senden ↗</button></form></div></div>`;drawMessages();if(!messages.length)document.querySelector('.messages').textContent=boot.chat?'Was möchtest du heute verstehen? Stelle eine Frage oder starte eine Abfrage.':'Der Tutor ist noch nicht mit Hermes verbunden. Die Lernmodi funktionieren unabhängig davon.';document.querySelector('#chat-form').onsubmit=e=>{e.preventDefault();sendChat(document.querySelector('#chat-input').value)};document.querySelector('#quiz').onclick=()=>sendChat('Frage mich zu den Grundlagen aus dem Einstiegsskript ab. Stelle eine Frage nach der anderen und warte auf meine Antwort.');document.querySelector('#reset-chat').onclick=async()=>{if(chatBusy)return;try{await api('/api/chat/reset',{});messages=[];chat()}catch(e){fail(e)}};setChatBusy()}
+function chat(){view.innerHTML=`<div class="workspace"><span class="eyebrow">Verstehen statt auswendig lernen</span><h1>Frag dein Herbarium.</h1><p class="sub">Dein Tutor erklärt die Grundlagen aus den Skripten und fragt dich Schritt für Schritt ab. ${boot.localTutor ? 'Deine Fragen und PDF-Auszüge verarbeitet das lokale Modell auf dem Rechner, auf dem die App läuft.' : 'Der Hermes-Modus sendet passende Skriptauszüge an den in Neo eingestellten Anbieter.'}</p><div class="row"><button class="secondary" id="quiz">Frag mich zu den Grundlagen ab</button><button class="secondary" id="reset-chat">Neues Gespräch</button>${boot.neoUrl&&!boot.localTutor?`<a class="source" target="_blank" rel="noopener" href="${esc(boot.neoUrl)}">Codex in Neo verbinden ↗</a>`:''}</div><div class="chat-shell"><div class="messages" role="log" aria-live="polite"></div><form class="chat-form" id="chat-form"><input id="chat-input" aria-label="Nachricht an den Tutor" required maxlength="4000" placeholder="Zum Beispiel: Was bedeutet kreuzgegenständig?"><button class="primary" id="send">Senden ↗</button></form></div></div>`;drawMessages();if(!messages.length)document.querySelector('.messages').textContent=boot.chat?'Was möchtest du heute verstehen? Stelle eine Frage oder starte eine Abfrage.':'Der Tutor ist noch nicht mit Hermes verbunden. Die Lernmodi funktionieren unabhängig davon.';document.querySelector('#chat-form').onsubmit=e=>{e.preventDefault();sendChat(document.querySelector('#chat-input').value)};document.querySelector('#quiz').onclick=()=>sendChat('Frage mich zu den Grundlagen aus dem Einstiegsskript ab.');document.querySelector('#reset-chat').onclick=async()=>{if(chatBusy)return;try{await api('/api/chat/reset',{});messages=[];chat()}catch(e){fail(e)}};setChatBusy()}
 function setChatBusy(){for(const id of ['send','quiz','reset-chat']){const b=document.getElementById(id);if(b)b.disabled=chatBusy}const send=document.querySelector('#send');if(send)send.textContent=chatBusy?'Tutor denkt …':'Senden ↗'}
 async function sendChat(text){if(chatBusy||!text.trim())return;chatBusy=true;setChatBusy();notice.textContent='';bubble('Du',text);const inp=document.querySelector('#chat-input');if(inp)inp.value='';try{const r=await api('/api/chat',{message:text});bubble('Tutor',r.reply,r.sources)}catch(e){fail(e)}finally{chatBusy=false;setChatBusy()}}
 
 document.addEventListener('click', event => {
   const button = event.target.closest('[data-mode],[data-go]');
-  if (button && boot) go(button.dataset.mode || button.dataset.go).catch(fail);
+  if (button && boot) {
+    if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+    go(button.dataset.mode || button.dataset.go).catch(fail);
+  }
 });
 function openLocation() {
   const links = {'#fehlende-tafeln': 'missing', '#namen-pruefen': 'names', '#pflanzenliste': 'school', '#botanik': 'botany', '#pflanzenwissen': 'quick'};
   const target = location.hash === '#bilder-pruefen' || location.hash.startsWith('#bilder-pruefen=')
     ? 'images' : links[location.hash] || 'home';
-  go(target).catch(fail);
+  const profileId = new URLSearchParams(location.hash.slice(1)).get('steckbrief');
+  go(profileId ? 'quick' : target, profileId).catch(fail);
 }
 api('/api/bootstrap').then(data => {
   boot = data;

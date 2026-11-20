@@ -22,11 +22,12 @@ function herbPicture(plant) {
   </figure>`).join('')}</div>` : '';
 }
 
-async function herbKnowledge() {
+async function herbKnowledge(profileId) {
   const token = round;
   const plants = await api('/api/herb-profiles');
   if (token !== round) return;
-  view.innerHTML = `<div class="workspace"><h1>Pflanzenwissen</h1>
+  const linkedProfile = plants.find(plant => plant.plant_ids.includes(profileId));
+  view.innerHTML = `<div class="workspace"><h1>Steckbriefe</h1>
     <p class="sub">Wirkungen und volksmedizinische Anwendungen werden als Angaben aus den Kursunterlagen wiedergegeben. Die medizinische Evidenz wurde dafür nicht bewertet.</p>
     <div class="toolbar"><label>Thema <select id="herb-topic"><option value="all">Alle Themen</option>
     ${Object.entries(herbTopics).map(([id, [label]]) => `<option value="${id}">${label}</option>`).join('')}</select></label>
@@ -64,7 +65,9 @@ async function herbKnowledge() {
     const button = event.target.closest('[data-herb-test]');
     if (button) herbTest(plants, topic.value, plants.find(plant => plant.number === Number(button.dataset.herbTest)));
   };
+  if (linkedProfile) search.value = linkedProfile.de;
   showProfiles();
+  if (linkedProfile) results.querySelector(`[data-profile="${linkedProfile.number}"]`).open = true;
 }
 
 function herbQuiz(plants, topic) {
